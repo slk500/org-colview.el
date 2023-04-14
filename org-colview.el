@@ -1043,8 +1043,8 @@ current specifications.  This function also sets
 			(throw :found (org-element-property :value element)))))
 		  nil)))
 	     org-columns-default-format)))
-    (setq org-columns-current-fmt format)
-    (org-columns-compile-format format)
+    (setq org-columns-current-fmt format
+	  org-columns-current-fmt-compiled (org-columns-compile-format format))
     format))
 
 (defun org-columns-store-format ()
@@ -1094,9 +1094,8 @@ COMPILED is an alist, as returned by `org-columns-compile-format'."
 		      (t (format "{%s}" op)))))))
    compiled " "))
 
-;;updates `org-columns-current-fmt-compiled
 (defun org-columns-compile-format (fmt)
-  "Turn a column format string FMT into an alist of specifications.
+  "Transform a column format string FMT into an alist of specifications.
 
 The alist has one entry for each column in the format.  The elements of
 that list are:
@@ -1104,11 +1103,8 @@ property    property name, as an upper-case string
 title       title field for the column, as a string
 width       column width in characters, as a number, can be nil for automatic width
 operator    summary operator, as a string, or nil
-printf      printf format for computed values, as a string, or nil
-
-This function updates `org-columns-current-fmt-compiled'."
-  (setq org-columns-current-fmt-compiled nil)
-  (let ((start 0))
+printf      printf format for computed values, as a string, or nil"
+  (let ((start 0) (org-columns-current-fmt-compiled nil))
     (while (string-match
 	    "%\\([0-9]+\\)?\\([[:alnum:]_-]+\\)\\(?:(\\([^)]+\\))\\)?\
 \\(?:{\\([^}]+\\)}\\)?\\s-*"
@@ -1125,8 +1121,7 @@ This function updates `org-columns-current-fmt-compiled'."
 		    (setq operator (substring operator 0 (match-beginning 0))))
 		  (list (upcase prop) title width operator printf)))
 	      org-columns-current-fmt-compiled)))
-    (setq org-columns-current-fmt-compiled
-	  (nreverse org-columns-current-fmt-compiled))))
+    (nreverse org-columns-current-fmt-compiled)))
 
 
 ;;;; Column View Summary
