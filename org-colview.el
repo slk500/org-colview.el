@@ -1097,11 +1097,11 @@ COMPILED is an alist, as returned by `org-columns-compile-format'."
 
 The alist has one entry for each column in the format.  The elements of
 that list are:
-property    the property name, as an upper-case string
-title       the title field for the columns, as a string
-width       the column width in characters, can be nil for automatic width
-operator    the summary operator, as a string, or nil
-printf      a printf format for computed values, as a string, or nil
+property    property name, as an upper-case string
+title       title field for the column, as a string
+width       column width in characters, as a number, can be nil for automatic width
+operator    summary operator, as a string, or nil
+printf      printf format for computed values, as a string, or nil
 
 This function updates `org-columns-current-fmt-compiled'."
   (setq org-columns-current-fmt-compiled nil)
