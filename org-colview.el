@@ -790,6 +790,13 @@ around it."
 ;;;###autoload
 (defun org-columns-get-format-and-top-level ()
   (let ((fmt (org-columns-get-format)))
+    ;; not sure is settings this globals is necessary,
+    ;; prev it was just -get-format functions
+    ;; which prev was setting this variables
+    ;; but also this function returns fmt
+    ;; so maybe setting this globals are not necessary
+    (setq org-columns-current-fmt fmt
+	  org-columns-current-fmt-compiled (org-columns-compile-format fmt))
     (org-columns-goto-top-level)
     fmt))
 
@@ -824,10 +831,10 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 	(move-marker org-columns-begin-marker (point))
       (setq org-columns-begin-marker (point-marker)))
     (org-columns-goto-top-level)
-    ;; Initialize `org-columns-current-fmt' and
-    ;; `org-columns-current-fmt-compiled'.
     (let ((org-columns--time (float-time)))
-      (org-columns-get-format columns-fmt-string)
+      (setq format (org-columns-get-format columns-fmt-string)
+       org-columns-current-fmt format
+       org-columns-current-fmt-compiled (org-columns-compile-format format))
       (unless org-columns-inhibit-recalculation (org-columns-compute-all))
       (save-restriction
 	(when (and (not global) (org-at-heading-p))
@@ -1026,26 +1033,20 @@ This is the compiled version of the format.")
 (defun org-columns-get-format (&optional fmt-string)
   "Return columns format specifications.
 When optional argument FMT-STRING is non-nil, use it as the
-current specifications.  This function also sets
-`org-columns-current-fmt-compiled' and
-`org-columns-current-fmt'."
+current specifications."
   (interactive)
-  (let ((format
-	 (or fmt-string
-	     (org-entry-get nil "COLUMNS" t)
-	     (org-with-wide-buffer
-	      (goto-char (point-min))
-	      (catch :found
-		(let ((case-fold-search t))
-		  (while (re-search-forward "^[ \t]*#\\+COLUMNS: .+$" nil t)
-		    (let ((element (org-element-at-point)))
-		      (when (eq (org-element-type element) 'keyword)
-			(throw :found (org-element-property :value element)))))
-		  nil)))
-	     org-columns-default-format)))
-    (setq org-columns-current-fmt format
-	  org-columns-current-fmt-compiled (org-columns-compile-format format))
-    format))
+  (or fmt-string
+      (org-entry-get nil "COLUMNS" t)
+      (org-with-wide-buffer
+       (goto-char (point-min))
+       (catch :found
+	 (let ((case-fold-search t))
+	   (while (re-search-forward "^[ \t]*#\\+COLUMNS: .+$" nil t)
+	     (let ((element (org-element-at-point)))
+	       (when (eq (org-element-type element) 'keyword)
+		 (throw :found (org-element-property :value element)))))
+	   nil)))
+      org-columns-default-format))
 
 (defun org-columns-store-format ()
   "Store the text version of the current columns format.
