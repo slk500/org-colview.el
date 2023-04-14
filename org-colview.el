@@ -117,13 +117,6 @@ in `org-columns-summary-types-default', which see."
 (defvar-local org-columns-overlays nil
   "Holds the list of current column overlays.")
 
-(defvar-local org-columns-current-fmt nil
-  "Local variable, holds the currently active column format.")
-
-(defvar-local org-columns-current-fmt-compiled nil
-  "Local variable, holds the currently active column format.
-This is the compiled version of the format.")
-
 (defvar-local org-columns-current-maxwidths nil
   "Currently active maximum column widths, as a vector.")
 
@@ -800,30 +793,6 @@ around it."
     (org-columns-goto-top-level)
     fmt))
 
-(defun org-columns-get-format (&optional fmt-string)
-  "Return columns format specifications.
-When optional argument FMT-STRING is non-nil, use it as the
-current specifications.  This function also sets
-`org-columns-current-fmt-compiled' and
-`org-columns-current-fmt'."
-  (interactive)
-  (let ((format
-	 (or fmt-string
-	     (org-entry-get nil "COLUMNS" t)
-	     (org-with-wide-buffer
-	      (goto-char (point-min))
-	      (catch :found
-		(let ((case-fold-search t))
-		  (while (re-search-forward "^[ \t]*#\\+COLUMNS: .+$" nil t)
-		    (let ((element (org-element-at-point)))
-		      (when (eq (org-element-type element) 'keyword)
-			(throw :found (org-element-property :value element)))))
-		  nil)))
-	     org-columns-default-format)))
-    (setq org-columns-current-fmt format)
-    (org-columns-compile-format format)
-    format))
-
 (defun org-columns-goto-top-level ()
   "Move to the beginning of the column view area.
 Also sets `org-columns-top-level-marker' to the new position."
@@ -1003,36 +972,6 @@ details."
     (org-columns-move-right)
     (backward-char 1)))
 
-(defun org-columns-store-format ()
-  "Store the text version of the current columns format.
-The format is stored either in the COLUMNS property of the node
-starting the current column display, or in a #+COLUMNS line of
-the current buffer."
-  (let ((fmt (org-columns-uncompile-format org-columns-current-fmt-compiled)))
-    (setq-local org-columns-current-fmt fmt)
-    (when org-columns-overlays
-      (org-with-point-at org-columns-top-level-marker
-	(if (and (org-at-heading-p) (org-entry-get nil "COLUMNS"))
-	    (org-entry-put nil "COLUMNS" fmt)
-	  (goto-char (point-min))
-	  (let ((case-fold-search t))
-	    ;; Try to replace the first COLUMNS keyword available.
-	    (catch :found
-	      (while (re-search-forward "^[ \t]*#\\+COLUMNS:\\(.*\\)" nil t)
-		(let ((element (save-match-data (org-element-at-point))))
-		  (when (and (eq (org-element-type element) 'keyword)
-			     (equal (org-element-property :key element)
-				    "COLUMNS"))
-		    (replace-match (concat " " fmt) t t nil 1)
-		    (throw :found nil))))
-	      ;; No COLUMNS keyword in the buffer.  Insert one at the
-	      ;; beginning, right before the first heading, if any.
-	      (goto-char (point-min))
-	      (unless (org-at-heading-p) (outline-next-heading))
-	      (let ((inhibit-read-only t))
-		(insert-before-markers "#+COLUMNS: " fmt "\n"))))
-	  (setq-local org-columns-default-format fmt))))))
-
 (defun org-columns-update (property)
   "Recompute PROPERTY, and update the columns display for it."
   (org-columns-compute property)
@@ -1075,6 +1014,69 @@ the current buffer."
 	(call-interactively #'org-agenda-columns)))
     (message "Recomputing columns...done")))
 
+;;;;;; format
+
+(defvar-local org-columns-current-fmt nil
+  "Local variable, holds the currently active column format.")
+
+(defvar-local org-columns-current-fmt-compiled nil
+  "Local variable, holds the currently active column format.
+This is the compiled version of the format.")
+
+(defun org-columns-get-format (&optional fmt-string)
+  "Return columns format specifications.
+When optional argument FMT-STRING is non-nil, use it as the
+current specifications.  This function also sets
+`org-columns-current-fmt-compiled' and
+`org-columns-current-fmt'."
+  (interactive)
+  (let ((format
+	 (or fmt-string
+	     (org-entry-get nil "COLUMNS" t)
+	     (org-with-wide-buffer
+	      (goto-char (point-min))
+	      (catch :found
+		(let ((case-fold-search t))
+		  (while (re-search-forward "^[ \t]*#\\+COLUMNS: .+$" nil t)
+		    (let ((element (org-element-at-point)))
+		      (when (eq (org-element-type element) 'keyword)
+			(throw :found (org-element-property :value element)))))
+		  nil)))
+	     org-columns-default-format)))
+    (setq org-columns-current-fmt format)
+    (org-columns-compile-format format)
+    format))
+
+(defun org-columns-store-format ()
+  "Store the text version of the current columns format.
+The format is stored either in the COLUMNS property of the node
+starting the current column display, or in a #+COLUMNS line of
+the current buffer."
+  (let ((fmt (org-columns-uncompile-format org-columns-current-fmt-compiled)))
+    (setq-local org-columns-current-fmt fmt)
+    (when org-columns-overlays
+      (org-with-point-at org-columns-top-level-marker
+	(if (and (org-at-heading-p) (org-entry-get nil "COLUMNS"))
+	    (org-entry-put nil "COLUMNS" fmt)
+	  (goto-char (point-min))
+	  (let ((case-fold-search t))
+	    ;; Try to replace the first COLUMNS keyword available.
+	    (catch :found
+	      (while (re-search-forward "^[ \t]*#\\+COLUMNS:\\(.*\\)" nil t)
+		(let ((element (save-match-data (org-element-at-point))))
+		  (when (and (eq (org-element-type element) 'keyword)
+			     (equal (org-element-property :key element)
+				    "COLUMNS"))
+		    (replace-match (concat " " fmt) t t nil 1)
+		    (throw :found nil))))
+	      ;; No COLUMNS keyword in the buffer.  Insert one at the
+	      ;; beginning, right before the first heading, if any.
+	      (goto-char (point-min))
+	      (unless (org-at-heading-p) (outline-next-heading))
+	      (let ((inhibit-read-only t))
+		(insert-before-markers "#+COLUMNS: " fmt "\n"))))
+	  (setq-local org-columns-default-format fmt))))))
+
 (defun org-columns-uncompile-format (compiled)
   "Turn the compiled columns format back into a string representation.
 
@@ -1092,6 +1094,7 @@ COMPILED is an alist, as returned by `org-columns-compile-format'."
 		      (t (format "{%s}" op)))))))
    compiled " "))
 
+;;updates `org-columns-current-fmt-compiled
 (defun org-columns-compile-format (fmt)
   "Turn a column format string FMT into an alist of specifications.
 
@@ -1737,6 +1740,7 @@ This will add overlays to the date lines, to show the summary for each day."
 
 ;; Local variables:
 ;; generated-autoload-file: "org-loaddefs.el"
+;; nameless-current-name: "org-columns"
 ;; End:
 
 ;;; org-colview.el ends here
