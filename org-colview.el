@@ -50,10 +50,6 @@
 (declare-function face-remap-remove-relative "face-remap" (cookie))
 (declare-function face-remap-add-relative "face-remap" (face &rest specs))
 
-(defvar org-agenda-columns-add-appointments-to-effort-sum)
-(defvar org-agenda-columns-compute-summary-properties)
-(defvar org-agenda-columns-show-summaries)
-(defvar org-agenda-view-columns-initially)
 (defvar org-inlinetask-min-level)
 
 
@@ -536,8 +532,6 @@ for the duration of the command.")
   (let ((value (get-char-property (point) 'org-columns-value)))
     (message "Value is: %s" (or value ""))))
 
-(defvar org-agenda-columns-active) ;; defined in org-agenda.el
-
 (defun org-columns-quit ()
   "Remove the column overlays and in this way exit column editing."
   (interactive)
@@ -577,18 +571,6 @@ See info documentation about realizing a suitable checkbox."
 		      (get-char-property (point) 'org-columns-value))
     (org-columns-next-allowed-value)
     t))
-
-(defvar org-overriding-columns-format nil
-  "When set, overrides any other format definition for the agenda.
-Don't set this, this is meant for dynamic scoping.  Set
-`org-columns-default-format' and `org-columns-default-format-for-agenda'
-instead.  You should use this variable only in the local settings
-section for a custom agenda view.")
-
-(defvar-local org-local-columns-format nil
-  "When set, overrides any other format definition for the agenda.
-This can be set as a buffer local value to avoid interfering with
-dynamic scoping for `org-overriding-columns-format'.")
 
 (defun org-columns-edit-value (&optional key)
   "Edit the value of the property at point in column view.
@@ -1583,6 +1565,21 @@ PARAMS is a property list of parameters:
 
 
 ;;; Column view in the agenda
+(defvar org-agenda-columns-active) ;; defined in org-agenda.el
+(defvar org-agenda-columns-add-appointments-to-effort-sum)
+(defvar org-agenda-columns-compute-summary-properties)
+(defvar org-agenda-columns-show-summaries)
+(defvar org-agenda-view-columns-initially)
+(defvar org-overriding-columns-format nil
+  "When set, overrides any other format definition for the agenda.
+Don't set this, this is meant for dynamic scoping.  Set
+`org-columns-default-format' and `org-columns-default-format-for-agenda'
+instead.  You should use this variable only in the local settings
+section for a custom agenda view.")
+(defvar-local org-local-columns-format nil
+  "When set, overrides any other format definition for the agenda.
+This can be set as a buffer local value to avoid interfering with
+dynamic scoping for `org-overriding-columns-format'.")
 
 ;;;###autoload
 (defun org-agenda-columns ()
