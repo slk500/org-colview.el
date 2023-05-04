@@ -815,8 +815,8 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
     (org-columns-goto-top-level)
     (let ((org-columns--time (float-time)))
       (setq format (org-columns-get-format columns-fmt-string)
-       org-columns-current-fmt format
-       org-columns-current-fmt-compiled (org-columns-compile-format format))
+	    org-columns-current-fmt format
+	    org-columns-current-fmt-compiled (org-columns-compile-format format))
       (unless org-columns-inhibit-recalculation (org-columns-compute-all))
       (save-restriction
 	(when (and (not global) (org-at-heading-p))
