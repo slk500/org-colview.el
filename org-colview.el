@@ -833,9 +833,7 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 	  (when cache
 	    (org-columns--set-widths cache)
 	    (org-columns--display-here-title)
-	    (when (setq-local org-columns-flyspell-was-active
-			      (bound-and-true-p flyspell-mode))
-	      (flyspell-mode 0))
+	    (org-columns--manage-flyspell-mode)
 	    (unless (local-variable-p 'org-colview-initial-truncate-line-value)
 	      (setq-local org-colview-initial-truncate-line-value
 			  truncate-lines))
@@ -1002,6 +1000,14 @@ details."
 	(org-agenda-redo)
 	(call-interactively #'org-agenda-columns)))
     (message "Recomputing columns...done")))
+
+;;;;;; helpers
+
+(defun org-columns--manage-flyspell-mode ()
+  "Turn off flyspell-mode if it's active"
+  (when (setq-local org-columns-flyspell-was-active
+		    (bound-and-true-p flyspell-mode))
+    (flyspell-mode 0)))
 
 ;;;;;; format
 
@@ -1634,9 +1640,7 @@ dynamic scoping for `org-overriding-columns-format'.")
 	(when cache
 	  (org-columns--set-widths cache)
 	  (org-columns--display-here-title)
-	  (when (setq-local org-columns-flyspell-was-active
-			    (bound-and-true-p flyspell-mode))
-	    (flyspell-mode 0))
+	  (org-columns-manage-flyspell-mode)
 	  (dolist (entry cache)
 	    (goto-char (car entry))
 	    (org-columns--display-here (cdr entry)))
