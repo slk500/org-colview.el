@@ -360,6 +360,30 @@ ORIGINAL is the real string, i.e., before it is modified by
               ("TODO" (propertize v 'face (org-get-todo-face original)))
               (_ v)))))
 
+(defvar header-line-format)
+(defvar org-columns-previous-hscroll 0)
+
+(defun org-columns--display-here-title ()
+  "Overlay the newline before the current line with the table title."
+  (interactive)
+  (let ((title "")
+	(linum-offset (org-line-number-display-width 'columns))
+	(i 0))
+    (dolist (column org-columns-current-fmt-compiled)
+      (pcase column
+	(`(,property ,name . ,_)
+	 (let* ((width (aref org-columns-current-maxwidths i))
+		(fmt (format "%%-%d.%ds | " width width)))
+	   (setq title (concat title (format fmt (or name property)))))))
+      (cl-incf i))
+    (setq-local org-previous-header-line-format header-line-format)
+    (setq org-columns-full-header-line-format
+	  (concat
+	   (org-add-props " " nil 'display `(space :align-to ,linum-offset))
+	   (org-add-props (substring title 0 -1) nil 'face 'org-column-title)))
+    (setq org-columns-previous-hscroll -1)
+    (add-hook 'post-command-hook #'org-columns-hscroll-title nil 'local)))
+
 (defvar org-columns-header-line-remap nil
   "Store the relative remapping of column header-line.
 This is needed to later remove this relative remapping.")
@@ -460,30 +484,6 @@ to edit property")))))))
   "Remember the state of `flyspell-mode' before column view.
 Flyspell-mode can cause problems in columns view, so it is turned off
 for the duration of the command.")
-
-(defvar header-line-format)
-(defvar org-columns-previous-hscroll 0)
-
-(defun org-columns--display-here-title ()
-  "Overlay the newline before the current line with the table title."
-  (interactive)
-  (let ((title "")
-	(linum-offset (org-line-number-display-width 'columns))
-	(i 0))
-    (dolist (column org-columns-current-fmt-compiled)
-      (pcase column
-	(`(,property ,name . ,_)
-	 (let* ((width (aref org-columns-current-maxwidths i))
-		(fmt (format "%%-%d.%ds | " width width)))
-	   (setq title (concat title (format fmt (or name property)))))))
-      (cl-incf i))
-    (setq-local org-previous-header-line-format header-line-format)
-    (setq org-columns-full-header-line-format
-	  (concat
-	   (org-add-props " " nil 'display `(space :align-to ,linum-offset))
-	   (org-add-props (substring title 0 -1) nil 'face 'org-column-title)))
-    (setq org-columns-previous-hscroll -1)
-    (add-hook 'post-command-hook #'org-columns-hscroll-title nil 'local)))
 
 (defun org-columns-hscroll-title ()
   "Set the `header-line-format' so that it scrolls along with the table."
