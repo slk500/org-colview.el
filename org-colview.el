@@ -292,25 +292,23 @@ possible to override it with optional argument COMPILED-FMT."
 	    (list spec v (org-columns--displayed-value spec v compiled-fmt))))))
      (or compiled-fmt org-columns-current-fmt-compiled))))
 
-(defun org-columns--set-widths (cache)
-  "Compute the maximum column widths from the format and CACHE.
-This function sets `org-columns-current-maxwidths' as a vector of
-integers greater than 0."
-  (setq org-columns-current-maxwidths
-	(apply #'vector
-	       (mapcar
-		(lambda (spec)
-		  (pcase spec
-		    (`(,_ ,_ ,(and width (pred wholenump)) . ,_) width)
-		    (`(,_ ,name . ,_)
-		     ;; No width is specified in the columns format.
-		     ;; Compute it by checking all possible values for
-		     ;; PROPERTY.
-		     (let ((width (length name)))
-		       (dolist (entry cache width)
-			 (let ((value (nth 2 (assoc spec (cdr entry)))))
-			   (setq width (max (length value) width))))))))
-		org-columns-current-fmt-compiled))))
+(defun org-columns--set-widths (cache current-fmt-compiled)
+  "Compute the maximum column widths from the CACHE and CURRENT-FMT-COMPILED.
+ Return a vector of integers greater than 0."
+  (apply #'vector
+	 (mapcar
+	  (lambda (spec)
+	    (pcase spec
+	      (`(,_ ,_ ,(and width (pred wholenump)) . ,_) width)
+	      (`(,_ ,name . ,_)
+	       ;; No width is specified in the columns format.
+	       ;; Compute it by checking all possible values for
+	       ;; PROPERTY.
+	       (let ((width (length name)))
+		 (dolist (entry cache width)
+		   (let ((value (nth 2 (assoc spec (cdr entry)))))
+		     (setq width (max (length value) width))))))))
+	  current-fmt-compiled)))
 
 (defun org-columns--new-overlay (beg end &optional string face)
   "Create a new column overlay and add it to the list."
@@ -831,7 +829,8 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
                (org-scan-tags
 		(lambda () (cons (point) (org-columns--collect-values))) t org--matcher-tags-todo-only)))
 	  (when cache
-	    (org-columns--set-widths cache)
+	    (setq org-columns-current-maxwidths
+		  (org-columns--set-widths cache org-columns-current-fmt-compiled))
 	    (org-columns--display-here-title)
 	    (org-columns--manage-flyspell-mode)
 	    (unless (local-variable-p 'org-colview-initial-truncate-line-value)
@@ -1638,7 +1637,8 @@ dynamic scoping for `org-overriding-columns-format'.")
 		    cache)))
 	  (forward-line))
 	(when cache
-	  (org-columns--set-widths cache)
+	  (setq org-columns-current-maxwidths
+		(org-columns--set-widths cache compiled-fmt))
 	  (org-columns--display-here-title)
 	  (org-columns-manage-flyspell-mode)
 	  (dolist (entry cache)
