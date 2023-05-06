@@ -28,13 +28,20 @@
 
 (ert-deftest test-org-colview/set-widths ()
   "Test `org-columns--set-widths' specifications."
+  ;; When no width is specified
     (should
      (equal [9] ;; Number 9 is length of "* heading" string
             (org-columns--set-widths
 	     ;; Number 18 is value of point where string "* heading" starts in buffer
 	     ;; This number does not matter for `org-columns--set-widths' function or this test
              '((18 (("ITEM" "ITEM" nil nil nil) "heading" "* heading")))
-             '(("ITEM" "ITEM" nil nil nil))))))
+             '(("ITEM" "ITEM" nil nil nil))))
+     ;; When width is specified
+     (should
+      (equal [25]
+	     (org-columns--set-widths
+             '((18 (("ITEM" "ITEM" 25 nil nil) "heading" "* heading")))
+             '(("ITEM" "ITEM" 25 nil nil)))))))
 
 (ert-deftest test-org-colview/uncompile-format ()
   "Test `org-columns-uncompile-format' specifications."
