@@ -30,7 +30,7 @@
   "Test `org-columns--set-widths' specifications."
   ;; When no width is specified
     (should
-     (equal [9] ;; Number 9 is length of "* heading" string
+     (equal [(length "* heading")]
             (org-columns--set-widths
 	     ;; Number 18 is value of point where string "* heading" starts in buffer
 	     ;; This number does not matter for `org-columns--set-widths' function or this test

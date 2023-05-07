@@ -259,6 +259,19 @@ value for ITEM property."
 	(`(,_ ,_ ,_ ,_ ,printf) (format printf (string-to-number value)))
 	(_ (error "Invalid column specification format: %S" spec)))))
 
+
+(defun org-columns--collect-all-values ()
+  "Collect values for columns on all lines.
+
+TODO how return data looks like
+(point (#column-number=current-fmt-compiled) property-value)
+(point (#column-number# heading heading-with-stars) (#column-number# #column-number-value )
+
+point point value where current row starts
+"
+  (org-scan-tags
+   (lambda () (cons (point) (org-columns--collect-values))) t org--matcher-tags-todo-only))
+
 (defun org-columns--collect-values (&optional compiled-fmt)
   "Collect values for columns on the current line.
 
@@ -823,14 +836,10 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 	  (org-clock-sum))
 	(when (assoc "CLOCKSUM_T" org-columns-current-fmt-compiled)
 	  (org-clock-sum-today))
-	(let ((cache
-	       ;; Collect contents of columns ahead of time so as to
-	       ;; compute their maximum width.
-               (org-scan-tags
-		(lambda () (cons (point) (org-columns--collect-values))) t org--matcher-tags-todo-only)))
-	  (when cache
+	(let ((values (org-columns--collect-all-values)))
+	  (when values
 	    (setq org-columns-current-maxwidths
-		  (org-columns--set-widths cache org-columns-current-fmt-compiled))
+		  (org-columns--set-widths values org-columns-current-fmt-compiled))
 	    (org-columns--display-here-title)
 	    (org-columns--manage-flyspell-mode)
 	    (unless (local-variable-p 'org-colview-initial-truncate-line-value)
@@ -838,7 +847,7 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 			  truncate-lines))
             (unless global-visual-line-mode
               (setq truncate-lines t))
-	    (dolist (entry cache)
+	    (dolist (entry values)
 	      (goto-char (car entry))
 	      (org-columns--display-here (cdr entry)))))))))
 
