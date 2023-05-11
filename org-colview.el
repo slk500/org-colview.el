@@ -259,7 +259,6 @@ value for ITEM property."
 	(`(,_ ,_ ,_ ,_ ,printf) (format printf (string-to-number value)))
 	(_ (error "Invalid column specification format: %S" spec)))))
 
-
 (defun org-columns--collect-all-values ()
   "Collect values for columns on all lines.
 
@@ -305,9 +304,28 @@ possible to override it with optional argument COMPILED-FMT."
 	    (list spec v (org-columns--displayed-value spec v compiled-fmt))))))
      (or compiled-fmt org-columns-current-fmt-compiled))))
 
+(defun org-columns--collect (operator)
+  "Return collect function associated to string OPERATOR.
+Return nil if no collect function is associated to OPERATOR."
+  (pcase (or (assoc operator org-columns-summary-types)
+	     (assoc operator org-columns-summary-types-default))
+    (`nil (error "Unknown %S operator" operator))
+    (`(,_ . ,(pred functionp)) nil)	;default value
+    (`(,_ ,_ ,collect) collect)
+    (_ (error "Invalid definition for operator %S" operator))))
+
+(defun org-columns--summarize (operator)
+  "Return summary function associated to string OPERATOR."
+  (pcase (or (assoc operator org-columns-summary-types)
+	     (assoc operator org-columns-summary-types-default))
+    (`nil (error "Unknown %S operator" operator))
+    (`(,_ . ,(and (pred functionp) summarize)) summarize)
+    (`(,_ ,summarize ,_) summarize)
+    (_ (error "Invalid definition for operator %S" operator))))
+
 (defun org-columns--set-widths (cache current-fmt-compiled)
   "Compute the maximum column widths from the CACHE and CURRENT-FMT-COMPILED.
- Return a vector of integers greater than 0."
+Return a vector of integers greater than 0."
   (apply #'vector
 	 (mapcar
 	  (lambda (spec)
@@ -331,25 +349,6 @@ possible to override it with optional argument COMPILED-FMT."
     (push ov org-columns-overlays)
     ov))
 
-(defun org-columns--summarize (operator)
-  "Return summary function associated to string OPERATOR."
-  (pcase (or (assoc operator org-columns-summary-types)
-	     (assoc operator org-columns-summary-types-default))
-    (`nil (error "Unknown %S operator" operator))
-    (`(,_ . ,(and (pred functionp) summarize)) summarize)
-    (`(,_ ,summarize ,_) summarize)
-    (_ (error "Invalid definition for operator %S" operator))))
-
-(defun org-columns--collect (operator)
-  "Return collect function associated to string OPERATOR.
-Return nil if no collect function is associated to OPERATOR."
-  (pcase (or (assoc operator org-columns-summary-types)
-	     (assoc operator org-columns-summary-types-default))
-    (`nil (error "Unknown %S operator" operator))
-    (`(,_ . ,(pred functionp)) nil)	;default value
-    (`(,_ ,_ ,collect) collect)
-    (_ (error "Invalid definition for operator %S" operator))))
-
 (defun org-columns--overlay-text (value fmt width property original)
   "Return decorated VALUE string for columns overlay display.
 FMT is a format string.  WIDTH is the width of the column, as an
@@ -357,19 +356,44 @@ integer.  PROPERTY is the property being displayed, as a string.
 ORIGINAL is the real string, i.e., before it is modified by
 `org-columns--displayed-value'."
   (format fmt
-          (let ((v (org-columns-add-ellipses value width)))
-            (pcase property
-              ("PRIORITY"
-               (propertize v 'face (org-get-priority-face original)))
-              ("TAGS"
-               (if (not org-tags-special-faces-re)
-                   (propertize v 'face 'org-tag)
-                 (replace-regexp-in-string
-                  org-tags-special-faces-re
-                  (lambda (m) (propertize m 'face (org-get-tag-face m)))
-                  v nil nil 1)))
-              ("TODO" (propertize v 'face (org-get-todo-face original)))
-              (_ v)))))
+	  (let ((v (org-columns-add-ellipses value width)))
+	    (pcase property
+	      ("PRIORITY"
+	       (propertize v 'face (org-get-priority-face original)))
+	      ("TAGS"
+	       (if (not org-tags-special-faces-re)
+		   (propertize v 'face 'org-tag)
+		 (replace-regexp-in-string
+		  org-tags-special-faces-re
+		  (lambda (m) (propertize m 'face (org-get-tag-face m)))
+		  v nil nil 1)))
+	      ("TODO" (propertize v 'face (org-get-todo-face original)))
+	      (_ v)))))
+
+;;;###autoload
+(defun org-columns-remove-overlays ()
+  "Remove all currently active column overlays."
+  (interactive)
+  (when org-columns-header-line-remap
+    (face-remap-remove-relative org-columns-header-line-remap)
+    (setq org-columns-header-line-remap nil))
+  (when org-columns-overlays
+    (when (local-variable-p 'org-previous-header-line-format)
+      (setq header-line-format org-previous-header-line-format)
+      (kill-local-variable 'org-previous-header-line-format)
+      (remove-hook 'post-command-hook #'org-columns-hscroll-title 'local))
+    (set-marker org-columns-begin-marker nil)
+    (when (markerp org-columns-top-level-marker)
+      (set-marker org-columns-top-level-marker nil))
+    (with-silent-modifications
+      (mapc #'delete-overlay org-columns-overlays)
+      (setq org-columns-overlays nil)
+      (let ((inhibit-read-only t))
+	(remove-text-properties (point-min) (point-max) '(read-only t))))
+    (when org-columns-flyspell-was-active
+      (flyspell-mode 1))
+    (when (local-variable-p 'org-colview-initial-truncate-line-value)
+      (setq truncate-lines org-colview-initial-truncate-line-value))))
 
 (defvar header-line-format)
 (defvar org-columns-previous-hscroll 0)
@@ -405,7 +429,7 @@ COLUMNS is an alist (SPEC VALUE DISPLAYED).  Optional argument
 DATELINE is non-nil when the face used should be
 `org-agenda-column-dateline'."
   (when (and (ignore-errors (require 'face-remap))
-             org-columns-header-line-remap)
+	     org-columns-header-line-remap)
     (setq org-columns-header-line-remap
 	  (face-remap-add-relative 'header-line '(:inherit default))))
   (save-excursion
@@ -511,31 +535,6 @@ for the duration of the command.")
 
 (defvar org-colview-initial-truncate-line-value nil
   "Remember the value of `truncate-lines' across colview.")
-
-;;;###autoload
-(defun org-columns-remove-overlays ()
-  "Remove all currently active column overlays."
-  (interactive)
-  (when org-columns-header-line-remap
-    (face-remap-remove-relative org-columns-header-line-remap)
-    (setq org-columns-header-line-remap nil))
-  (when org-columns-overlays
-    (when (local-variable-p 'org-previous-header-line-format)
-      (setq header-line-format org-previous-header-line-format)
-      (kill-local-variable 'org-previous-header-line-format)
-      (remove-hook 'post-command-hook #'org-columns-hscroll-title 'local))
-    (set-marker org-columns-begin-marker nil)
-    (when (markerp org-columns-top-level-marker)
-      (set-marker org-columns-top-level-marker nil))
-    (with-silent-modifications
-      (mapc #'delete-overlay org-columns-overlays)
-      (setq org-columns-overlays nil)
-      (let ((inhibit-read-only t))
-	(remove-text-properties (point-min) (point-max) '(read-only t))))
-    (when org-columns-flyspell-was-active
-      (flyspell-mode 1))
-    (when (local-variable-p 'org-colview-initial-truncate-line-value)
-      (setq truncate-lines org-colview-initial-truncate-line-value))))
 
 (defun org-columns-show-value ()
   "Show the full value of the property."
@@ -703,7 +702,7 @@ an integer, select that value."
   (interactive)
   (org-columns-check-computed)
   (let* ((column (org-current-text-column))
-         (visible-column (current-column))
+	 (visible-column (current-column))
 	 (key (get-char-property (point) 'org-columns-key))
 	 (value (get-char-property (point) 'org-columns-value))
 	 (pom (or (get-text-property (line-beginning-position) 'org-hd-marker)
@@ -845,8 +844,8 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 	    (unless (local-variable-p 'org-colview-initial-truncate-line-value)
 	      (setq-local org-colview-initial-truncate-line-value
 			  truncate-lines))
-            (unless global-visual-line-mode
-              (setq truncate-lines t))
+	    (unless global-visual-line-mode
+	      (setq truncate-lines t))
 	    (dolist (entry values)
 	      (goto-char (car entry))
 	      (org-columns--display-here (cdr entry)))))))))
@@ -1163,11 +1162,11 @@ properties drawers."
 	 (last-level lmax)
 	 (property (car spec))
 	 (printf (nth 4 spec))
-         ;; Special properties cannot be collected nor summarized, as
-         ;; they have their own way to be computed.  Therefore, ignore
-         ;; any operator attached to them.
+	 ;; Special properties cannot be collected nor summarized, as
+	 ;; they have their own way to be computed.  Therefore, ignore
+	 ;; any operator attached to them.
 	 (operator (and (not (member property org-special-properties))
-                        (nth 3 spec)))
+			(nth 3 spec)))
 	 (collect (and operator (org-columns--collect operator)))
 	 (summarize (and operator (org-columns--summarize operator))))
     (org-with-wide-buffer
@@ -1181,7 +1180,7 @@ properties drawers."
 	 (setq last-level level))
        (setq level (org-reduced-level (org-outline-level)))
        (let* ((pos (match-beginning 0))
-              (value (if collect (funcall collect property)
+	      (value (if collect (funcall collect property)
 		       (org-entry-get (point) property)))
 	      (value-set (org-string-nw-p value)))
 	 (cond
@@ -1340,7 +1339,7 @@ When PRINTF is non-nil, use it to format the result."
 The mean and variance of the result will be the sum of the means
 and variances (respectively) of the individual estimates."
   (let ((mean 0)
-        (var 0))
+	(var 0))
     (dolist (e estimates)
       (pcase (mapcar #'string-to-number (split-string e "-"))
 	(`(,low ,high)
@@ -1398,7 +1397,7 @@ other rows.  Each row is a list of fields, as strings, or
 	     (push (cons (org-reduced-level (org-current-level)) (nreverse row))
 		   table)))))
      (if match
-         (concat match (and maxlevel (format "+LEVEL<=%d" maxlevel)))
+	 (concat match (and maxlevel (format "+LEVEL<=%d" maxlevel)))
        (and maxlevel (format "LEVEL<=%d" maxlevel)))
      (and local 'tree)
      'archive 'comment)
@@ -1708,7 +1707,7 @@ This will add overlays to the date lines, to show the summary for each day."
 			       (delq nil
 				     (mapcar
 				      (lambda (e) (org-string-nw-p
-					           (nth 1 (assoc spec e))))
+						   (nth 1 (assoc spec e))))
 				      entries)))
 			      (final (if values
 					 (funcall summarize values printf)
