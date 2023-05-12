@@ -1008,7 +1008,7 @@ details."
 	(call-interactively #'org-agenda-columns)))
     (message "Recomputing columns...done")))
 
-;;;;;; helpers
+;;;;;; flyspell
 
 (defun org-columns--manage-flyspell-mode ()
   "Turn off flyspell-mode if it's active"
@@ -1016,7 +1016,7 @@ details."
 		    (bound-and-true-p flyspell-mode))
     (flyspell-mode 0)))
 
-;;;;;; format
+;;;;;; fmt
 
 (defvar-local org-columns-current-fmt nil
   "Local variable, holds the currently active column format.")
@@ -1122,31 +1122,35 @@ printf      printf format for computed values, as a string, or nil"
 
 ;;;; Column View Summary
 
-(defun org-columns--age-to-minutes (s)
-  "Turn age string S into a number of minutes.
-An age is either computed from a given time-stamp, or indicated
-as a canonical duration, i.e., using units defined in
-`org-duration-canonical-units'."
-  (cond
-   ((string-match-p org-ts-regexp s)
-    (/ (- org-columns--time
-	  (float-time (org-time-string-to-time s)))
-       60))
-   ((org-duration-p s) (org-duration-to-minutes s t)) ;skip user units
-   (t (user-error "Invalid age: %S" s))))
+;;;;; Compute
 
-(defun org-columns--format-age (minutes)
-  "Format MINUTES float as an age string."
-  (org-duration-from-minutes minutes
-			     '(("d" . nil) ("h" . nil) ("min" . nil))
-			     t))	;ignore user's custom units
+;;;###autoload
+(defun org-columns-compute (property)
+  "Summarize the values of PROPERTY hierarchically.
+Also update existing values for PROPERTY according to the first
+column specification."
+  (interactive)
+  (let ((main-flag t)
+	(upcase-prop (upcase property)))
+    (dolist (spec org-columns-current-fmt-compiled)
+      (pcase spec
+	(`(,(pred (equal upcase-prop)) . ,_)
+	 (org-columns--compute-spec spec main-flag)
+	 ;; Only the first summary can update the property value.
+	 (when main-flag (setq main-flag nil)))))))
 
-(defun org-columns--summary-apply-times (fun times)
-  "Apply FUN to time values TIMES.
-Return the result as a duration."
-  (org-duration-from-minutes
-   (apply fun (mapcar #'org-duration-to-minutes times))
-   (org-duration-h:mm-only-p times)))
+(defun org-columns-compute-all ()
+  "Compute all columns that have operators defined."
+  (with-silent-modifications
+    (remove-text-properties (point-min) (point-max) '(org-summaries t)))
+  (let ((org-columns--time (float-time))
+	seen)
+    (dolist (spec org-columns-current-fmt-compiled)
+      (let ((property (car spec)))
+	;; Property value is updated only the first time a given
+	;; property is encountered.
+	(org-columns--compute-spec spec (not (member property seen)))
+	(push property seen)))))
 
 (defun org-columns--compute-spec (spec &optional update)
   "Update tree according to SPEC.
@@ -1221,42 +1225,35 @@ properties drawers."
 	  (value-set (push value (aref lvals level)))
 	  (t nil)))))))
 
-;;;###autoload
-(defun org-columns-compute (property)
-  "Summarize the values of PROPERTY hierarchically.
-Also update existing values for PROPERTY according to the first
-column specification."
-  (interactive)
-  (let ((main-flag t)
-	(upcase-prop (upcase property)))
-    (dolist (spec org-columns-current-fmt-compiled)
-      (pcase spec
-	(`(,(pred (equal upcase-prop)) . ,_)
-	 (org-columns--compute-spec spec main-flag)
-	 ;; Only the first summary can update the property value.
-	 (when main-flag (setq main-flag nil)))))))
+;;;;; Formatting Functions
 
-(defun org-columns-compute-all ()
-  "Compute all columns that have operators defined."
-  (with-silent-modifications
-    (remove-text-properties (point-min) (point-max) '(org-summaries t)))
-  (let ((org-columns--time (float-time))
-	seen)
-    (dolist (spec org-columns-current-fmt-compiled)
-      (let ((property (car spec)))
-	;; Property value is updated only the first time a given
-	;; property is encountered.
-	(org-columns--compute-spec spec (not (member property seen)))
-	(push property seen)))))
+(defun org-columns--age-to-minutes (s)
+  "Turn age string S into a number of minutes.
+An age is either computed from a given time-stamp, or indicated
+as a canonical duration, i.e., using units defined in
+`org-duration-canonical-units'."
+  (cond
+   ((string-match-p org-ts-regexp s)
+    (/ (- org-columns--time
+	  (float-time (org-time-string-to-time s)))
+       60))
+   ((org-duration-p s) (org-duration-to-minutes s t)) ;skip user units
+   (t (user-error "Invalid age: %S" s))))
 
-(defun org-columns--summary-sum (values printf)
-  "Compute the sum of VALUES.
-When PRINTF is non-nil, use it to format the result."
-  (format (or printf "%s") (apply #'+ (mapcar #'string-to-number values))))
+(defun org-columns--format-age (minutes)
+  "Format MINUTES float as an age string."
+  (org-duration-from-minutes minutes
+			     '(("d" . nil) ("h" . nil) ("min" . nil))
+			     t))	;ignore user's custom units
 
-(defun org-columns--summary-currencies (values _)
-  "Compute the sum of VALUES, with two decimals."
-  (format "%.2f" (apply #'+ (mapcar #'string-to-number values))))
+;;;;; Summary Functions
+
+(defun org-columns--summary-apply-times (fun times)
+  "Apply FUN to time values TIMES.
+Return the result as a duration."
+  (org-duration-from-minutes
+   (apply fun (mapcar #'org-duration-to-minutes times))
+   (org-duration-h:mm-only-p times)))
 
 (defun org-columns--summary-checkbox (check-boxes _)
   "Summarize CHECK-BOXES with a check-box."
@@ -1281,58 +1278,9 @@ When PRINTF is non-nil, use it to format the result."
 				       check-boxes))
 		 (length check-boxes))))
 
-(defun org-columns--summary-min (values printf)
-  "Compute the minimum of VALUES.
-When PRINTF is non-nil, use it to format the result."
-  (format (or printf "%s")
-	  (apply #'min (mapcar #'string-to-number values))))
-
-(defun org-columns--summary-max (values printf)
-  "Compute the maximum of VALUES.
-When PRINTF is non-nil, use it to format the result."
-  (format (or printf "%s")
-	  (apply #'max (mapcar #'string-to-number values))))
-
-(defun org-columns--summary-mean (values printf)
-  "Compute the mean of VALUES.
-When PRINTF is non-nil, use it to format the result."
-  (format (or printf "%s")
-	  (/ (apply #'+ (mapcar #'string-to-number values))
-	     (float (length values)))))
-
-(defun org-columns--summary-sum-times (times _)
-  "Sum TIMES."
-  (org-columns--summary-apply-times #'+ times))
-
-(defun org-columns--summary-min-time (times _)
-  "Compute the minimum time among TIMES."
-  (org-columns--summary-apply-times #'min times))
-
-(defun org-columns--summary-max-time (times _)
-  "Compute the maximum time among TIMES."
-  (org-columns--summary-apply-times #'max times))
-
-(defun org-columns--summary-mean-time (times _)
-  "Compute the mean time among TIMES."
-  (org-columns--summary-apply-times
-   (lambda (&rest values) (/ (apply #'+ values) (float (length values))))
-   times))
-
-(defun org-columns--summary-min-age (ages _)
-  "Compute the minimum age among AGES."
-  (org-columns--format-age
-   (apply #'min (mapcar #'org-columns--age-to-minutes ages))))
-
-(defun org-columns--summary-max-age (ages _)
-  "Compute the maximum age among AGES."
-  (org-columns--format-age
-   (apply #'max (mapcar #'org-columns--age-to-minutes ages))))
-
-(defun org-columns--summary-mean-age (ages _)
-  "Compute the mean age among AGES."
-  (org-columns--format-age
-   (/ (apply #'+ (mapcar #'org-columns--age-to-minutes ages))
-      (float (length ages)))))
+(defun org-columns--summary-currencies (values _)
+  "Compute the sum of VALUES, with two decimals."
+  (format "%.2f" (apply #'+ (mapcar #'string-to-number values))))
 
 (defun org-columns--summary-estimate (estimates _)
   "Combine a list of estimates, using mean and variance.
@@ -1352,8 +1300,66 @@ and variances (respectively) of the individual estimates."
 	      (format "%.0f" (- mean sd))
 	      (format "%.0f" (+ mean sd))))))
 
+(defun org-columns--summary-max (values printf)
+  "Compute the maximum of VALUES.
+When PRINTF is non-nil, use it to format the result."
+  (format (or printf "%s")
+	  (apply #'max (mapcar #'string-to-number values))))
+
+(defun org-columns--summary-max-age (ages _)
+  "Compute the maximum age among AGES."
+  (org-columns--format-age
+   (apply #'max (mapcar #'org-columns--age-to-minutes ages))))
+
+(defun org-columns--summary-max-time (times _)
+  "Compute the maximum time among TIMES."
+  (org-columns--summary-apply-times #'max times))
+
+(defun org-columns--summary-mean (values printf)
+  "Compute the mean of VALUES.
+When PRINTF is non-nil, use it to format the result."
+  (format (or printf "%s")
+	  (/ (apply #'+ (mapcar #'string-to-number values))
+	     (float (length values)))))
+
+(defun org-columns--summary-mean-age (ages _)
+  "Compute the mean age among AGES."
+  (org-columns--format-age
+   (/ (apply #'+ (mapcar #'org-columns--age-to-minutes ages))
+      (float (length ages)))))
+
+(defun org-columns--summary-mean-time (times _)
+  "Compute the mean time among TIMES."
+  (org-columns--summary-apply-times
+   (lambda (&rest values) (/ (apply #'+ values) (float (length values))))
+   times))
+
+(defun org-columns--summary-min (values printf)
+  "Compute the minimum of VALUES.
+When PRINTF is non-nil, use it to format the result."
+  (format (or printf "%s")
+	  (apply #'min (mapcar #'string-to-number values))))
+
+(defun org-columns--summary-min-age (ages _)
+  "Compute the minimum age among AGES."
+  (org-columns--format-age
+   (apply #'min (mapcar #'org-columns--age-to-minutes ages))))
+
+(defun org-columns--summary-min-time (times _)
+  "Compute the minimum time among TIMES."
+  (org-columns--summary-apply-times #'min times))
+
+(defun org-columns--summary-sum (values printf)
+  "Compute the sum of VALUES.
+When PRINTF is non-nil, use it to format the result."
+  (format (or printf "%s") (apply #'+ (mapcar #'string-to-number values))))
+
+(defun org-columns--summary-sum-times (times _)
+  "Sum TIMES."
+  (org-columns--summary-apply-times #'+ times))
 
 
+
 ;;; Dynamic block for Column view
 
 (defun org-columns--capture-view (maxlevel match skip-empty exclude-tags format local)
