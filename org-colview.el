@@ -1152,7 +1152,7 @@ column specification."
 	(org-columns--compute-spec spec (not (member property seen)))
 	(push property seen)))))
 
-(defun org-columns--update-properties (update value summary property)
+(defun org-columns-update-properties (update value summary property)
   (let ((new-value (org-trim summary)))
     (when (and update value (not (equal value new-value)))
       (org-entry-put (point) property new-value))))
@@ -1219,7 +1219,7 @@ properties drawers."
 	       ;; Ignore leading or trailing white spaces that might
 	       ;; have been introduced in summary, since those are not
 	       ;; significant in properties value.
-	       (org-columns--update-properties update value summary property))
+	       (org-columns-update-properties update value summary property))
 	     ;; Add current to current level accumulator.
 	     (when (or summary value-set)
 	       (push (or summary value) (aref lvals level)))
