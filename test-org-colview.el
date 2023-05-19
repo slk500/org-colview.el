@@ -26,11 +26,24 @@
 (require 'org-duration)
 (require 'org-inlinetask)
 
+(ert-deftest test-org-colview/--calculate-value ()
+    "Test `org-columns--calculate-value' specifications."
+    ;; Sum up value from levels below & update the value
+    (should
+     (equal '((:level 1 :push 6)
+	   (:level 2 :push 3)
+	   (:level 2 :push 3))
+	    (org-columns--calculate-value
+	     '((:level 1 :push 0)
+	       (:level 2 :push 3)
+	       (:level 2 :push 3))
+	     "push"))))
+
 (ert-deftest test-org-colview/set-widths ()
   "Test `org-columns--set-widths' specifications."
   ;; When no width is specified
     (should
-     (equal [(length "* heading")]
+     (equal [9] ;; 9 is (length "* heading")
             (org-columns--set-widths
 	     ;; Number 18 is value of point where string "* heading" starts in buffer
 	     ;; This number does not matter for `org-columns--set-widths' function or this test

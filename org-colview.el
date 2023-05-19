@@ -1228,23 +1228,24 @@ properties drawers."
 	  (value-set (push value (aref lvals level)))
 	  (t nil)))))))
 
-(defun parse-org-tree-children ()
-  (interactive)
-  (goto-char (condition-case nil (org-end-of-subtree t) (error (point-max))))
-  (let ((my-list nil)
-	(temp nil)
+(defun org-columns--calculate-value (tree-vals property-name)
+
+  (let ((tree-vals-calculated)
+	(vals)
 	(last-level 0))
-    (while (re-search-backward
-	    org-outline-regexp-bol (point-min) t)
-      (let ((item (org-entry-get nil "ITEM"))
-	    (prop (org-entry-get nil "push"))
-	    (level (org-reduced-level (org-outline-level))))
-	(cond
-	 ((> level last-level) (setq my-list (list (list item :push prop :children my-list))))
-	 ((< level last-level) (setq my-list (list (list item :push prop :children my-list))))
-	 ((= level last-level) (push (list item :push prop :children) my-list)))
-	(setq last-level level)))
-    (print my-list)))
+    (dolist (element (reverse tree-vals))
+      (let ((level (plist-get element ':level))
+	    (value (plist-get element ':push)))
+	(cond ((< level last-level)
+	       (let ((val-calculated (apply #'+ vals )))
+		 (plist-put element ':push val-calculated)
+		 (push element tree-vals-calculated)
+		 (setq vals nil)
+		 (push val-calculated vals)))
+	      (t (push element tree-vals-calculated)
+		 (push value vals)))
+	(setq last-level level))
+      ) tree-vals-calculated))
 
 ;;;;; Formatting Functions
 
