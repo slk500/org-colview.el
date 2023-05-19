@@ -26,18 +26,26 @@
 (require 'org-duration)
 (require 'org-inlinetask)
 
+(ert-deftest test-org-colview/--displayed-value ()
+  "Test `org-columns--displayed-value' specifications."
+  ;; without stars
+  (should
+   (equal "heading"
+	  (org-columns--displayed-value
+	   '("ITEM" "ITEM" 25 nil nil) "heading" 'no-stars))))
+
 (ert-deftest test-org-colview/--calculate-value ()
-    "Test `org-columns--calculate-value' specifications."
-    ;; Sum up value from levels below & update the value
-    (should
-     (equal '((:level 1 :push-up 6)
-	      (:level 2 :push-up 3)
-	      (:level 2 :push-up 3))
-	    (org-columns--calculate-value
-	     '((:level 1 :push-up 0)
-	       (:level 2 :push-up 3)
-	       (:level 2 :push-up 3))
-	     :push-up))))
+  "Test `org-columns--calculate-value' specifications."
+  ;; Sum up values from levels below & update the value
+  (should
+   (equal '((:level 1 :push-up 6)
+	    (:level 2 :push-up 3)
+	    (:level 2 :push-up 3))
+	  (org-columns--calculate-value
+	   '((:level 1 :push-up 0)
+	     (:level 2 :push-up 3)
+	     (:level 2 :push-up 3))
+	   :push-up))))
 
 (ert-deftest test-org-colview/set-widths ()
   "Test `org-columns--set-widths' specifications."
