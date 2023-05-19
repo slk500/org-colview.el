@@ -30,14 +30,14 @@
     "Test `org-columns--calculate-value' specifications."
     ;; Sum up value from levels below & update the value
     (should
-     (equal '((:level 1 :push 6)
-	   (:level 2 :push 3)
-	   (:level 2 :push 3))
+     (equal '((:level 1 :push-up 6)
+	      (:level 2 :push-up 3)
+	      (:level 2 :push-up 3))
 	    (org-columns--calculate-value
-	     '((:level 1 :push 0)
-	       (:level 2 :push 3)
-	       (:level 2 :push 3))
-	     "push"))))
+	     '((:level 1 :push-up 0)
+	       (:level 2 :push-up 3)
+	       (:level 2 :push-up 3))
+	     :push-up))))
 
 (ert-deftest test-org-colview/set-widths ()
   "Test `org-columns--set-widths' specifications."
