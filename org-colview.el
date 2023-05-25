@@ -262,14 +262,10 @@ value for ITEM property."
 (defun org-columns--collect-all-values ()
   "Collect values for columns on all lines.
 
-TODO how return data looks like
-(point (#column-number=current-fmt-compiled) property-value)
-(point (#column-number# heading heading-with-stars) (#column-number# #column-number-value )
-
-point point value where current row starts
-"
+Return an alist ( ((POINT) (SPEC VALUE DISPLAYED)) ((POINT) (SPEC VALUE DISPLAYED))...)."
   (org-scan-tags
-   (lambda () (cons (point) (org-columns--collect-values))) t org--matcher-tags-todo-only))
+   (lambda () (cons (point) (org-columns--collect-values))) t org--matcher-tags-todo-only)
+)
 
 (defun org-columns--collect-values (&optional compiled-fmt)
   "Collect values for columns on the current line.
@@ -349,6 +345,13 @@ Return a vector of integers greater than 0."
     (push ov org-columns-overlays)
     ov))
 
+(defun org-columns-add-ellipses (string width)
+  "Truncate STRING with WIDTH characters, with ellipses."
+  (cond
+   ((<= (length string) width) string)
+   ((<= width (length org-columns-ellipses)) (substring org-columns-ellipses 0 width))
+   (t (concat (substring string 0 (- width (length org-columns-ellipses))) org-columns-ellipses))))
+
 (defun org-columns--overlay-text (value fmt width property original)
   "Return decorated VALUE string for columns overlay display.
 FMT is a format string.  WIDTH is the width of the column, as an
@@ -423,6 +426,11 @@ ORIGINAL is the real string, i.e., before it is modified by
   "Store the relative remapping of column header-line.
 This is needed to later remove this relative remapping.")
 
+(defun org-columns-overlay-fmt (last width)
+  (format (if last "%%-%d.%ds |"
+	    "%%-%d.%ds | ")
+	  width width))
+
 (defun org-columns--display-here (columns &optional dateline)
   "Overlay the current line with column display.
 COLUMNS is an alist (SPEC VALUE DISPLAYED).  Optional argument
@@ -456,16 +464,14 @@ DATELINE is non-nil when the face used should be
 	      (insert (make-string (- columns chars) ?\s))))))
       ;; Display columns.  Create and install the overlay for the
       ;; current column on the next character.
-      (let ((i 0)
-	    (last (1- (length columns))))
+      (let* ((i 0)
+	    (last (= i (1- (length columns)))))
 	(dolist (column columns)
 	  (pcase column
 	    (`(,spec ,original ,value)
 	     (let* ((property (car spec))
 		    (width (aref org-columns-current-maxwidths i))
-		    (fmt (format (if (= i last) "%%-%d.%ds |"
-				   "%%-%d.%ds | ")
-				 width width))
+		    (fmt (org-columns-overlay-fmt last width))
 		    (ov (org-columns--new-overlay
 			 (point) (1+ (point))
 			 (org-columns--overlay-text
@@ -500,14 +506,10 @@ DATELINE is non-nil when the face used should be
 	    "Type \\<org-columns-map>`\\[org-columns-edit-value]' \
 to edit property")))))))
 
-(defun org-columns-add-ellipses (string width)
-  "Truncate STRING with WIDTH characters, with ellipses."
-  (cond
-   ((<= (length string) width) string)
-   ((<= width (length org-columns-ellipses))
-    (substring org-columns-ellipses 0 width))
-   (t (concat (substring string 0 (- width (length org-columns-ellipses)))
-	      org-columns-ellipses))))
+(defun org-columns--display-here-all (values)
+  (dolist (entry values)
+    (goto-char (car entry))
+    (org-columns--display-here (cdr entry))))
 
 (defvar org-columns-full-header-line-format nil
   "The full header line format, will be shifted by horizontal scrolling." )
@@ -846,9 +848,7 @@ When COLUMNS-FMT-STRING is non-nil, use it as the column format."
 			  truncate-lines))
 	    (unless global-visual-line-mode
 	      (setq truncate-lines t))
-	    (dolist (entry values)
-	      (goto-char (car entry))
-	      (org-columns--display-here (cdr entry)))))))))
+	    (org-columns--display-here-all values)))))))
 
 (defun org-columns-new (&optional spec &rest attributes)
   "Insert a new column, to the left of the current column.
