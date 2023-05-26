@@ -426,10 +426,13 @@ ORIGINAL is the real string, i.e., before it is modified by
   "Store the relative remapping of column header-line.
 This is needed to later remove this relative remapping.")
 
-(defun org-columns-overlay-fmt (last width)
-  (format (if last "%%-%d.%ds |"
-	    "%%-%d.%ds | ")
-	  width width))
+(defun org-columns--overlay-fmt (width last)
+  "Return format string for overlay.
+WIDTH is the width of the column, as an integer.
+LAST if nil it will add space character to the of of fmt stinrg."
+  (concat
+   (format "%%-%d.%ds |" width width)
+   (unless last " ")))
 
 (defun org-columns--display-here (columns &optional dateline)
   "Overlay the current line with column display.
@@ -471,7 +474,7 @@ DATELINE is non-nil when the face used should be
 	    (`(,spec ,original ,value)
 	     (let* ((property (car spec))
 		    (width (aref org-columns-current-maxwidths i))
-		    (fmt (org-columns-overlay-fmt last width))
+		    (fmt (org-columns--overlay-fmt width last))
 		    (ov (org-columns--new-overlay
 			 (point) (1+ (point))
 			 (org-columns--overlay-text

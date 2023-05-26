@@ -26,9 +26,31 @@
 (require 'org-duration)
 (require 'org-inlinetask)
 
+(ert-deftest test-org-colview/--overlay-fmt ()
+  ;; Return fmt string with space char after vertical line
+  (should
+   (equal "%-10.10s | "
+    (org-columns--overlay-fmt 10 nil)))
+  ;; Return fmt string
+  (should
+   (equal "%-10.10s |"
+    (org-columns--overlay-fmt 10 t))))
+
+(ert-deftest test-org-colview/--overlay-text ()
+  "Test `org-columns--overlay-test' specifications."
+  ;; Return value
+  (should
+   (equal "some-value |"
+    (org-columns--overlay-text
+     "some-value"
+     "%-10.10s |"
+     10
+     "push"
+     "some-value"))))
+
 (ert-deftest test-org-colview/--displayed-value ()
   "Test `org-columns--displayed-value' specifications."
-  ;; without stars
+  ;; Without stars
   (should
    (equal "heading"
 	  (org-columns--displayed-value
