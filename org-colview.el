@@ -434,6 +434,18 @@ LAST if nil it will add space character to the of of fmt stinrg."
    (format "%%-%d.%ds |" width width)
    (unless last " ")))
 
+;; Each column is an overlay on top of a character.  So there has
+;; to be at least as many characters available on the line as
+;; columns to display.
+(defun org-columns--add-whitespace-hack ()
+  (let ((columns (length org-columns-current-fmt-compiled))
+	(chars (- (line-end-position) (line-beginning-position))))
+    (when (> columns chars)
+      (save-excursion
+	(end-of-line)
+	(let ((inhibit-read-only t))
+	  (insert (make-string (- columns chars) ?\s)))))))
+
 (defun org-columns--display-here (columns &optional dateline)
   "Overlay the current line with column display.
 COLUMNS is an alist (SPEC VALUE DISPLAYED).  Optional argument
@@ -455,20 +467,11 @@ DATELINE is non-nil when the face used should be
 	   (font (list :family (face-attribute 'default :family)))
 	   (face (list color font 'org-column ref-face))
 	   (face1 (list color font 'org-agenda-column-dateline ref-face)))
-      ;; Each column is an overlay on top of a character.  So there has
-      ;; to be at least as many characters available on the line as
-      ;; columns to display.
-      (let ((columns (length org-columns-current-fmt-compiled))
-	    (chars (- (line-end-position) (line-beginning-position))))
-	(when (> columns chars)
-	  (save-excursion
-	    (end-of-line)
-	    (let ((inhibit-read-only t))
-	      (insert (make-string (- columns chars) ?\s))))))
+      (org-columns--add-whitespace-hack)
       ;; Display columns.  Create and install the overlay for the
       ;; current column on the next character.
       (let* ((i 0)
-	    (last (= i (1- (length columns)))))
+	     (last (= i (1- (length columns)))))
 	(dolist (column columns)
 	  (pcase column
 	    (`(,spec ,original ,value)
