@@ -26,6 +26,28 @@
 (require 'org-duration)
 (require 'org-inlinetask)
 
+
+
+;; Each column is an overlay on top of a character.  So there has
+;; to be at least as many characters available on the line as
+;; columns to display.
+;; 'org-columns--display-here'
+(ert-deftest test-org-colview/bug-add-whitespace ()
+  "Insert space characters if number of characters on the line
+  is lower then number of columns."
+  :expected-result :failed
+  (should
+   (equal "* H
+** A
+** B
+"
+          (org-test-with-temp-text "* H
+** A
+** B
+"
+            (org-columns)
+            (buffer-substring-no-properties (point-min) (point-max))))))
+
 (ert-deftest test-org-colview/--overlay-fmt ()
   ;; Return fmt string with space char after vertical line
   (should
