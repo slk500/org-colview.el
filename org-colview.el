@@ -472,27 +472,30 @@ DATELINE is non-nil when the face used should be
       ;; current column on the next character.
       (let* ((i 0)
 	     (lastp (= i (1- (length columns))))
+	     (row ""))
 	(dolist (column columns)
 	  (pcase column
 	    (`(,spec ,original ,value)
 	     (let* ((property (car spec))
 		    (width (aref org-columns-current-maxwidths i))
-		    (fmt (org-columns--overlay-fmt width last))
-		    (ov (org-columns--new-overlay
-			 (point) (1+ (point))
-			 (org-columns--overlay-text
-			  value fmt width property original)
-			 (if dateline face1 face))))
-	       (overlay-put ov 'keymap org-columns-map)
-	       (overlay-put ov 'org-columns-key property)
-	       (overlay-put ov 'org-columns-value original)
-	       (overlay-put ov 'org-columns-value-modified value)
-	       (overlay-put ov 'org-columns-format fmt)
-	       (overlay-put ov 'line-prefix "")
-	       (overlay-put ov 'wrap-prefix "")
-	       (forward-char))))
-	  (cl-incf i)))
 		    (fmt (org-columns--overlay-fmt width lastp)))
+	       (setq row (concat row (org-columns--overlay-text
+				      value fmt width property original)))
+)))
+	  (cl-incf i))
+	(let ((ov (org-columns--new-overlay
+		   (point) (1+ (point))
+		   row
+		   (if dateline face1 face))))
+
+	  (overlay-put ov 'keymap org-columns-map)
+	  ;; (overlay-put ov 'org-columns-key property)
+	  ;; (overlay-put ov 'org-columns-value original)
+	  ;; (overlay-put ov 'org-columns-value-modified value)
+	  ;; (overlay-put ov 'org-columns-format fmt)
+	  ;; (overlay-put ov 'line-prefix "")
+	  ;; (overlay-put ov 'wrap-prefix "")
+))
       ;; Make the rest of the line disappear.
       (let ((ov (org-columns--new-overlay (point) (line-end-position))))
 	(overlay-put ov 'invisible t)
