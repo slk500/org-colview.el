@@ -471,7 +471,7 @@ DATELINE is non-nil when the face used should be
       ;; Display columns.  Create and install the overlay for the
       ;; current column on the next character.
       (let* ((i 0)
-	     (last (= i (1- (length columns)))))
+	     (lastp (= i (1- (length columns))))
 	(dolist (column columns)
 	  (pcase column
 	    (`(,spec ,original ,value)
@@ -492,6 +492,7 @@ DATELINE is non-nil when the face used should be
 	       (overlay-put ov 'wrap-prefix "")
 	       (forward-char))))
 	  (cl-incf i)))
+		    (fmt (org-columns--overlay-fmt width lastp)))
       ;; Make the rest of the line disappear.
       (let ((ov (org-columns--new-overlay (point) (line-end-position))))
 	(overlay-put ov 'invisible t)
