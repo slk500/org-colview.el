@@ -471,13 +471,13 @@ DATELINE is non-nil when the face used should be
       ;; Display columns.  Create and install the overlay for the
       ;; current column on the next character.
       (let* ((i 0)
-	     (last (= i (1- (length columns)))))
+	     (lastp (= i (1- (length columns)))))
 	(dolist (column columns)
 	  (pcase column
 	    (`(,spec ,original ,value)
 	     (let* ((property (car spec))
 		    (width (aref org-columns-current-maxwidths i))
-		    (fmt (org-columns--overlay-fmt width last))
+		    (fmt (org-columns--overlay-fmt width lastp))
 		    (ov (org-columns--new-overlay
 			 (point) (1+ (point))
 			 (org-columns--overlay-text
