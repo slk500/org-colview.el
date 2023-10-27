@@ -719,7 +719,7 @@ an integer, select that value."
 	  (let ((all
 		 (or (org-property-get-allowed-values pom key)
 		     (pcase (nth column org-columns-current-fmt-compiled)
-		       (`(,_ ,_ ,_ ,(or "X" "X/" "X%") ,_) '("[ ]" "[X]")))
+		       (`(,_ ,_ ,_ ,(or "X" "X/" "X%") ,_) '("[ ]" "[-]" "[X]")))
 		     (org-colview-construct-allowed-dates value))))
 	    (if previous (reverse all) all))))
     (when (equal key "ITEM") (error "Cannot edit item headline from here"))
